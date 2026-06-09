@@ -1,4 +1,5 @@
 /* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,11 +11,14 @@
  * GNU General Public License for more details.
  */
 
+/* Standalone DTB for Xiaomi Redmi Note 10 Pro (sweet).
+ * Combines xiaomi-sdmmagpie base with sweet-specific hardware.
+ * board-id <46 0> / msm-id <365 0x0> matches the sweet bootloader.
+ */
+
 /dts-v1/;
 
 #include "sdmmagpie.dtsi"
-
-// Include non-overlayed xiaomi changes
 #include "xiaomi/pm6150.dtsi"
 #include "xiaomi/pm6150l.dtsi"
 #include "xiaomi/sdmmagpie.dtsi"
@@ -23,12 +27,20 @@
 #include "xiaomi/sdmmagpie-regulator.dtsi"
 #include "xiaomi/sdmmagpie-sde.dtsi"
 #include "xiaomi/sdmmagpie-thermal.dtsi"
+#include "xiaomi/sweet/sweet-audio-overlay.dtsi"
+#include "xiaomi/sweet/sweet-sdmmagpie.dtsi"
+#include "xiaomi/sweet/sweet-nfc-overlay.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SDMMAGPIE SoC";
-	compatible = "qcom,sdmmagpie";
-	qcom,pmic-name = "PM6150";
+	model = "Xiaomi Redmi Note 10 Pro";
+	compatible = "qcom,sdmmagpie-qrd", "qcom,sdmmagpie", "qcom,qrd";
+	qcom,msm-id = <365 0x0>;
+	/* board-id <0 0> = wildcard, so the bootloader (ABL) always accepts
+	 * this DTB (like the stock base xiaomi-sdmmagpie.dtb). The real sweet
+	 * variant id <46> made ABL reject the single embedded DTB and drop to
+	 * fastboot; the sweet-specific hardware comes from the includes below. */
 	qcom,board-id = <0 0>;
+	qcom,pmic-name = "PM6150";
 };
 
 &pm6150l_lcdb {
@@ -41,21 +53,4 @@
 
 &icnss {
 	/delete-property/ vdd-3.3-ch1-supply;
-};
-
-/* Halium bring-up: the APSS watchdog (bark ~20s) reboots the device
- * before userspace can pet it. Disable it so the boot can proceed far
- * enough to bring up USB/telnet/adb and so pstore survives for logs.
- * Re-enable once the Android container pets the watchdog. */
-&wdog {
-	status = "disabled";
-};
-
-/* Enable the debug UART (geni console / ttyMSM0). It's disabled on the
- * production device, so no console registers -> /dev/console open fails
- * (ENODEV) -> Halium run-init can't start /sbin/init -> panic. Enabling it
- * (with CONFIG_SERIAL_MSM_GENI_CONSOLE=y and console=ttyMSM0) registers a
- * console so run-init can switch_root into the rootfs. */
-&qupv3_se8_2uart {
-	status = "okay";
 };
